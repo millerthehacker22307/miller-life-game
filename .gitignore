@@ -1,2 +1,9 @@
 node_modules/
+.next/
+out/
 .DS_Store
+*.log
+.env*
+!.env.example
+local-dev.db
+local-dev.db-*
