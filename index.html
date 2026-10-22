@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Miller's Life Game — Habit Tracker RPG</title>
+<meta name="description" content="Miller's Life Game: a gamified habit tracker. Complete daily quests, earn XP, level up and keep the streak alive.">
+<style>
+  :root{
+    --bg:#04060f;
+    --bg2:#071026;
+    --panel:rgba(13,25,54,.72);
+    --panel-border:rgba(56,189,248,.16);
+    --blue:#38bdf8;
+    --blue2:#2563eb;
+    --blue-soft:rgba(56,189,248,.14);
+    --text:#e6eefc;
+    --muted:#8fa3c8;
+    --green:#34d399;
+    --amber:#fbbf24;
+    --red:#f87171;
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(37,99,235,.22), transparent 60%),
+      radial-gradient(700px 420px at -10% 20%, rgba(56,189,248,.10), transparent 55%),
+      linear-gradient(180deg,var(--bg2),var(--bg) 55%);
+    background-attachment:fixed;
+    color:var(--text);
+    min-height:100vh;
+    padding:20px 14px 40px;
+  }
+  .wrap{max-width:880px;margin:0 auto}
+  .mono{font-family:"Consolas","SF Mono","Roboto Mono",ui-monospace,monospace}
+
+  /* ---------- top bar ---------- */
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 2px}
+  .logo{font-weight:800;letter-spacing:.22em;font-size:.82rem;color:var(--text)}
+  .logo span{color:var(--blue)}
+  .topdate{color:var(--muted);font-size:.8rem;letter-spacing:.08em}
+
+  /* ---------- generic panel ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:var(--radius);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
+    box-shadow:0 10px 34px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.05);
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .panel h2{
+    font-size:.78rem;letter-spacing:.26em;color:var(--blue);
+    text-transform:uppercase;margin-bottom:14px;font-weight:700;
+    display:flex;align-items:center;gap:10px;
+  }
+  .panel h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(56,189,248,.35),transparent)}
+
+  /* ---------- player card ---------- */
+  .player{position:relative;overflow:hidden}
+  .player::before{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(420px 200px at 12% 0%, rgba(56,189,248,.14), transparent 65%);
+  }
+  .player-top{display:flex;gap:16px;align-items:center;position:relative}
+  .avatar{
+    width:72px;height:72px;flex:0 0 72px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.9rem;font-weight:800;color:#dff3ff;
+    background:radial-gradient(circle at 32% 28%, #1d4ed8, #0b1e4b 72%);
+    border:2px solid rgba(56,189,248,.55);
+    box-shadow:0 0 22px rgba(56,189,248,.35), inset 0 0 18px rgba(56,189,248,.25);
+  }
+  .player-id{flex:1;min-width:0}
+  .player-name{font-size:1.55rem;font-weight:800;line-height:1.05}
+  .player-title{color:var(--blue);font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;margin-top:3px}
+  .rank-line{color:var(--muted);font-size:.85rem;margin-top:5px}
+  .rank-line b{color:var(--text)}
+  .level-badge{
+    text-align:center;background:var(--blue-soft);
+    border:1px solid rgba(56,189,248,.4);border-radius:12px;
+    padding:10px 14px;min-width:86px;
+  }
+  .level-badge .lv{font-size:1.5rem;font-weight:800;line-height:1}
+  .level-badge .lvlabel{font-size:.62rem;letter-spacing:.24em;color:var(--blue);margin-top:4px}
+  .xpbar-wrap{margin-top:18px;position:relative}
+  .xpbar-head{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);letter-spacing:.06em;margin-bottom:7px}
+  .xpbar-head b{color:var(--text)}
+  .xpbar{
+    height:14px;border-radius:99px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(56,189,248,.25);overflow:hidden;position:relative;
+  }
+  .xpfill{
+    height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,var(--blue2),var(--blue));
+    box-shadow:0 0 14px rgba(56,189,248,.65);
+    transition:width .7s cubic-bezier(.22,.9,.3,1);
+  }
+  .player-stats{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;position:relative}
+  .pstat{
+    flex:1;min-width:100px;background:rgba(255,255,255,.035);
+    border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 12px;text-align:center;
+  }
+  .pstat .num{font-size:1.15rem;font-weight:800}
+  .pstat .lab{font-size:.64rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-top:3px}
+  .motive{margin-top:16px;color:#c9dcff;font-size:.95rem;position:relative}
+  .motive::before{content:"▸ ";color:var(--blue)}
+  @keyframes levelPulse{
+    0%{box-shadow:0 0 0 rgba(56,189,248,0)}
+    35%{box-shadow:0 0 44px rgba(56,189,248,.55), inset 0 0 24px rgba(56,189,248,.18)}
+    100%{box-shadow:0 10px 34px rgba(0,0,0,.42)}
+  }
+  .player.levelup{animation:levelPulse 1.6s ease-out 2}
+  .levelup-toast{
+    display:none;margin-top:14px;padding:10px 14px;border-radius:10px;text-align:center;
+    background:rgba(56,189,248,.14);border:1px solid rgba(56,189,248,.5);
+    color:#bfe9ff;font-weight:700;letter-spacing:.12em;font-size:.85rem;position:relative;
+  }
+  .levelup-toast.show{display:block}
+
+  /* ---------- quests ---------- */
+  .quest{
+    display:flex;align-items:center;gap:13px;
+    background:rgba(255,255,255,.03);
+    border:1px solid rgba(255,255,255,.07);
+    border-radius:13px;padding:12px 14px;margin-bottom:9px;
+    cursor:pointer;user-select:none;position:relative;
+    transition:border-color .25s, background .25s, opacity .25s;
+  }
+  .quest:hover{border-color:rgba(56,189,248,.4)}
+  .quest .icon{font-size:1.3rem;width:30px;text-align:center;flex:0 0 30px}
+  .quest .qlabel{flex:1;font-size:.98rem}
+  .quest .xpchip{
+    font-size:.74rem;font-weight:700;color:var(--blue);
+    background:var(--blue-soft);border:1px solid rgba(56,189,248,.35);
+    padding:4px 9px;border-radius:99px;letter-spacing:.04em;white-space:nowrap;
+  }
+  .quest .box{
+    width:26px;height:26px;flex:0 0 26px;border-radius:50%;
+    border:2px solid rgba(143,163,200,.5);
+    display:flex;align-items:center;justify-content:center;
+    color:transparent;font-size:.85rem;font-weight:900;
+    transition:all .25s;
+  }
+  .quest.done{border-color:rgba(56,189,248,.45);background:rgba(56,189,248,.07)}
+  .quest.done .qlabel{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(56,189,248,.6)}
+  .quest.done .box{background:linear-gradient(135deg,var(--blue2),var(--blue));border-color:var(--blue);color:#fff;box-shadow:0 0 12px rgba(56,189,248,.55)}
+  .quest .del{
+    background:none;border:none;color:var(--muted);font-size:1.05rem;cursor:pointer;
+    padding:2px 6px;line-height:1;border-radius:6px;
+  }
+  .quest .del:hover{color:var(--red);background:rgba(248,113,113,.1)}
+  .xp-float{
+    position:absolute;right:64px;top:6px;color:var(--blue);font-weight:800;font-size:.85rem;
+    pointer-events:none;opacity:0;animation:floatUp 1s ease-out forwards;
+  }
+  @keyframes floatUp{0%{opacity:0;transform:translateY(6px)}18%{opacity:1}100%{opacity:0;transform:translateY(-20px)}}
+  .addquest{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+  .addquest input[type=text]{
+    flex:1;min-width:170px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;color:var(--text);padding:11px 13px;font-size:.92rem;outline:none;
+  }
+  .addquest input[type=number]{
+    width:92px;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;color:var(--text);padding:11px 10px;font-size:.92rem;outline:none;
+  }
+  .addquest input:focus{border-color:rgba(56,189,248,.6)}
+  .btn{
+    background:linear-gradient(135deg,var(--blue2),#1d9bf0);color:#fff;border:none;
+    padding:11px 18px;border-radius:10px;font-weight:700;font-size:.9rem;cursor:pointer;
+    letter-spacing:.05em;box-shadow:0 4px 16px rgba(37,99,235,.35);
+  }
+  .btn:active{transform:scale(.97)}
+  .quest-progress{display:flex;justify-content:space-between;color:var(--muted);font-size:.82rem;margin-bottom:12px}
+  .quest-progress b{color:var(--text)}
+
+  /* ---------- stats ---------- */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+  .stat-tile{
+    background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);
+    border-radius:12px;padding:14px 8px;text-align:center;
+  }
+  .stat-tile .num{font-size:1.45rem;font-weight:800}
+  .stat-tile .lab{font-size:.62rem;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-top:4px}
+  .chart-box{background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 10px 8px}
+  .chart-title{font-size:.74rem;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;text-align:center;margin-bottom:8px}
+  svg text{font-family:inherit}
+
+  /* ---------- history ---------- */
+  .hist-row{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid rgba(255,255,255,.06)}
+  .hist-row:last-child{border-bottom:none}
+  .hist-date{width:118px;flex:0 0 118px}
+  .hist-date .d{font-weight:700;font-size:.92rem}
+  .hist-date .xp{color:var(--muted);font-size:.76rem}
+  .hist-bar{flex:1;height:9px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden}
+  .hist-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue2),var(--blue))}
+  .hist-pct{width:48px;flex:0 0 48px;text-align:right;font-weight:800;font-size:.92rem}
+  .perfect{color:var(--amber)}
+  .empty-note{color:var(--muted);font-size:.9rem;text-align:center;padding:10px 0}
+
+  /* ---------- footer ---------- */
+  .footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:2px 4px}
+  .footer .note{color:var(--muted);font-size:.78rem}
+  .reset-btn{
+    background:none;border:1px solid rgba(248,113,113,.4);color:var(--red);
+    padding:8px 14px;border-radius:9px;cursor:pointer;font-size:.8rem;font-weight:600;
+  }
+  .reset-btn:hover{background:rgba(248,113,113,.08)}
+
+  @media (max-width:640px){
+    body{padding:14px 10px 32px}
+    .panel{padding:16px 14px}
+    .avatar{width:58px;height:58px;flex-basis:58px;font-size:1.5rem}
+    .player-name{font-size:1.3rem}
+    .level-badge{min-width:74px;padding:8px 10px}
+    .stat-grid{grid-template-columns:repeat(2,1fr)}
+    .hist-date{width:96px;flex-basis:96px}
+    .logo{font-size:.72rem}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="logo">⚔️ MILLER'S <span>LIFE GAME</span></div>
+    <div class="topdate mono" id="topDate">—</div>
+  </div>
+
+  <!-- PLAYER CARD -->
+  <section class="panel player" id="playerCard">
+    <div class="player-top">
+      <div class="avatar">M</div>
+      <div class="player-id">
+        <div class="player-name">Miller</div>
+        <div class="player-title">Player One</div>
+        <div class="rank-line">Rank: <b id="rankTitle">Rookie</b> · Next: <b id="rankNext">—</b></div>
+      </div>
+      <div class="level-badge">
+        <div class="lv mono" id="levelNum">1</div>
+        <div class="lvlabel">LEVEL</div>
+      </div>
+    </div>
+    <div class="xpbar-wrap">
+      <div class="xpbar-head">
+        <span>XP PROGRESS</span>
+        <span><b id="xpInto">0</b> / <b id="xpNeed">100</b> XP to Level <b id="xpNextLv">2</b></span>
+      </div>
+      <div class="xpbar"><div class="xpfill" id="xpFill"></div></div>
+    </div>
+    <div class="player-stats">
+      <div class="pstat"><div class="num mono" id="totalXp">0</div><div class="lab">Total XP</div></div>
+      <div class="pstat"><div class="num" id="streakNow">🔥 0</div><div class="lab">Day Streak</div></div>
+      <div class="pstat"><div class="num mono" id="todayXp">0</div><div class="lab">XP Today</div></div>
+      <div class="pstat"><div class="num mono" id="bestStreak">0</div><div class="lab">Best Streak</div></div>
+    </div>
+    <div class="motive" id="motiveLine">Loading your quest log…</div>
+    <div class="levelup-toast" id="levelToast">⬆ LEVEL UP!</div>
+  </section>
+
+  <!-- DAILY QUESTS -->
+  <section class="panel">
+    <h2>Daily Quests</h2>
+    <div class="quest-progress">
+      <span>Completed <b id="doneCount">0/0</b></span>
+      <span>Today: <b id="todayPct">0%</b></span>
+    </div>
+    <div id="questList"></div>
+    <div class="addquest">
+      <input type="text" id="newQuestLabel" placeholder="Add a custom quest…" maxlength="60">
+      <input type="number" id="newQuestXp" placeholder="XP" min="1" max="500" value="15">
+      <button class="btn" id="addQuestBtn">+ Add Quest</button>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="panel">
+    <h2>Stats &amp; Consistency</h2>
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="num mono" id="statToday">0%</div><div class="lab">Today</div></div>
+      <div class="stat-tile"><div class="num mono" id="statWeek">0%</div><div class="lab">7-Day Average</div></div>
+      <div class="stat-tile"><div class="num mono" id="statAll">0%</div><div class="lab">All-Time Rate</div></div>
+      <div class="stat-tile"><div class="num mono" id="statDays">0</div><div class="lab">Active Days</div></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Last 14 Days — Daily Completion %</div>
+      <div id="chart"></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="panel">
+    <h2>History</h2>
+    <div id="historyList"></div>
+  </section>
+
+  <div class="footer">
+    <div class="note">Progress is saved automatically on this device. New day = fresh quest log, history stays.</div>
+    <button class="reset-btn" id="resetBtn">Reset All Progress</button>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+/* ==================== DATA ==================== */
+var LS_KEY = "miller-life-game-v1";
+
+var DEFAULT_QUESTS = [
+  { id:"wake",    icon:"🌅", label:"Wake up early",              xp:10 },
+  { id:"gym",     icon:"🏋️", label:"Gym / Run / Workout",        xp:20 },
+  { id:"leet",    icon:"💻", label:"LeetCode problem",           xp:20 },
+  { id:"upsc",    icon:"📚", label:"UPSC study session",         xp:30 },
+  { id:"cyberox", icon:"🛡️", label:"Cyberox work",               xp:20 },
+  { id:"med",     icon:"🧘", label:"Meditation",                 xp:10 },
+  { id:"shower",  icon:"🚿", label:"Cold shower",                xp:10 },
+  { id:"deep",    icon:"🎯", label:"Deep work — 2 hours",        xp:25 },
+  { id:"food",    icon:"🥗", label:"Healthy food — pure veg",    xp:10 },
+  { id:"water",   icon:"💧", label:"3L water",                   xp:10 },
+  { id:"read",    icon:"📖", label:"Reading — 15 min",           xp:10 },
+  { id:"sleep",   icon:"🌙", label:"Sleep before 11 PM",         xp:15 }
+];
+
+var RANKS = [
+  { lv:1,  title:"Rookie" },
+  { lv:3,  title:"Awakened" },
+  { lv:5,  title:"Grinder" },
+  { lv:8,  title:"Focused" },
+  { lv:10, title:"Disciplined" },
+  { lv:15, title:"Warrior" },
+  { lv:20, title:"Machine" },
+  { lv:30, title:"Relentless" },
+  { lv:40, title:"Elite" },
+  { lv:50, title:"Unstoppable" }
+];
+
+/* Cumulative XP needed to REACH level L: 100, 300, 600, 1000, 1500, ... */
+function xpToReachLevel(L){ return L <= 1 ? 0 : 100 * (L - 1) * L / 2; }
+function levelFromXp(xp){
+  var lv = 1;
+  while (xpToReachLevel(lv + 1) <= xp) lv++;
+  return lv;
+}
+function rankForLevel(lv){
+  var cur = RANKS[0], next = null;
+  for (var i = 0; i < RANKS.length; i++){
+    if (RANKS[i].lv <= lv) cur = RANKS[i];
+    else { next = RANKS[i]; break; }
+  }
+  return { current: cur, next: next };
+}
+
+/* ==================== STATE ==================== */
+function dateKey(d){
+  var m = String(d.getMonth() + 1).padStart(2, "0");
+  var day = String(d.getDate()).padStart(2, "0");
+  return d.getFullYear() + "-" + m + "-" + day;
+}
+function todayKey(){ return dateKey(new Date()); }
+function shiftKey(key, deltaDays){
+  var p = key.split("-");
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  d.setDate(d.getDate() + deltaDays);
+  return dateKey(d);
+}
+
+function loadState(){
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (raw){
+      var s = JSON.parse(raw);
+      if (s && s.days && Array.isArray(s.custom)) return s;
+    }
+  } catch (e) {}
+  return { custom: [], days: {} };
+}
+var state = loadState();
+function saveState(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function allQuests(){ return DEFAULT_QUESTS.concat(state.custom); }
+function questById(id){
+  var qs = allQuests();
+  for (var i = 0; i < qs.length; i++) if (qs[i].id === id) return qs[i];
+  return null;
+}
+function dayRec(key){
+  if (!state.days[key]) state.days[key] = { done: {}, xp: 0, total: allQuests().length };
+  return state.days[key];
+}
+function syncTodayTotal(){
+  var rec = dayRec(todayKey());
+  rec.total = allQuests().length;
+}
+function totalXp(){
+  var sum = 0;
+  for (var k in state.days) sum += state.days[k].xp || 0;
+  return sum;
+}
+function dayPct(key){
+  var rec = state.days[key];
+  if (!rec || !rec.total) return 0;
+  var done = Object.keys(rec.done).length;
+  return Math.round(done / rec.total * 100);
+}
+function streakEndingAt(key){
+  var n = 0, k = key;
+  while (state.days[k] && Object.keys(state.days[k].done).length > 0){ n++; k = shiftKey(k, -1); }
+  return n;
+}
+function currentStreak(){
+  var t = todayKey();
+  var rec = state.days[t];
+  if (rec && Object.keys(rec.done).length > 0) return streakEndingAt(t);
+  return streakEndingAt(shiftKey(t, -1)); /* morning grace: streak alive until today ends */
+}
+function bestStreak(){
+  var best = 0;
+  for (var k in state.days){
+    if (Object.keys(state.days[k].done).length > 0){
+      var s = streakEndingAt(k);
+      if (s > best) best = s;
+    }
+  }
+  return best;
+}
+
+/* ==================== RENDER ==================== */
+var $ = function(id){ return document.getElementById(id); };
+
+function motiveFor(pct, doneCount){
+  if (doneCount === 0) return "Every legend starts with Day One. Clear your first quest, Player One.";
+  if (pct < 30)  return "Warming up. Momentum is built one quest at a time — keep pushing.";
+  if (pct < 60)  return "Solid pace. The grind is real, and so is the progress.";
+  if (pct < 100) return "Strong day, Miller. A few quests left — finish the run.";
+  return "PERFECT DAY. Full clear. This is what the top 1% looks like.";
+}
+
+function renderPlayer(animateLevel){
+  var xp = totalXp();
+  var lv = levelFromXp(xp);
+  var base = xpToReachLevel(lv);
+  var nextAt = xpToReachLevel(lv + 1);
+  var into = xp - base, need = nextAt - base;
+  var rank = rankForLevel(lv);
+  var t = todayKey(), trec = dayRec(t);
+  var pct = dayPct(t);
+
+  $("levelNum").textContent = lv;
+  $("rankTitle").textContent = rank.current.title;
+  $("rankNext").textContent = rank.next ? ("Lv " + rank.next.lv + " " + rank.next.title) : "MAX RANK";
+  $("xpInto").textContent = into;
+  $("xpNeed").textContent = need;
+  $("xpNextLv").textContent = lv + 1;
+  $("totalXp").textContent = xp;
+  $("todayXp").textContent = trec.xp || 0;
+  $("streakNow").textContent = "🔥 " + currentStreak();
+  $("bestStreak").textContent = bestStreak();
+  $("motiveLine").textContent = motiveFor(pct, Object.keys(trec.done).length);
+
+  requestAnimationFrame(function(){ $("xpFill").style.width = (need ? (into / need * 100) : 100) + "%"; });
+
+  if (animateLevel){
+    var card = $("playerCard"), toast = $("levelToast");
+    toast.textContent = "⬆ LEVEL UP! You reached Level " + lv + " — " + rank.current.title;
+    toast.classList.add("show");
+    card.classList.remove("levelup");
+    void card.offsetWidth;
+    card.classList.add("levelup");
+    setTimeout(function(){ toast.classList.remove("show"); }, 4200);
+  }
+}
+
+function renderQuests(){
+  var t = todayKey(), rec = dayRec(t);
+  var qs = allQuests();
+  var list = $("questList");
+  list.innerHTML = "";
+  qs.forEach(function(q){
+    var done = !!rec.done[q.id];
+    var row = document.createElement("div");
+    row.className = "quest" + (done ? " done" : "");
+    row.setAttribute("role", "checkbox");
+    row.setAttribute("aria-checked", done ? "true" : "false");
+
+    var icon = document.createElement("span"); icon.className = "icon"; icon.textContent = q.icon || "⭐";
+    var lab = document.createElement("span"); lab.className = "qlabel"; lab.textContent = q.label;
+    var chip = document.createElement("span"); chip.className = "xpchip"; chip.textContent = "+" + q.xp + " XP";
+    var box = document.createElement("span"); box.className = "box"; box.textContent = "✓";
+    row.appendChild(icon); row.appendChild(lab); row.appendChild(chip); row.appendChild(box);
+
+    if (q.custom){
+      var del = document.createElement("button");
+      del.className = "del"; del.textContent = "×"; del.title = "Delete quest";
+      del.addEventListener("click", function(ev){ ev.stopPropagation(); deleteCustomQuest(q.id); });
+      row.appendChild(del);
+    }
+    row.addEventListener("click", function(){ toggleQuest(q.id, row); });
+    list.appendChild(row);
+  });
+  var doneCount = Object.keys(rec.done).length;
+  $("doneCount").textContent = doneCount + "/" + qs.length;
+  $("todayPct").textContent = dayPct(t) + "%";
+}
+
+function renderStats(){
+  var t = todayKey();
+  $("statToday").textContent = dayPct(t) + "%";
+
+  var sum7 = 0;
+  for (var i = 0; i < 7; i++) sum7 += dayPct(shiftKey(t, -i));
+  $("statWeek").textContent = Math.round(sum7 / 7) + "%";
+
+  var pcts = [], active = 0;
+  for (var k in state.days){
+    if (state.days[k].total){ pcts.push(dayPct(k)); active++; }
+  }
+  var allAvg = pcts.length ? Math.round(pcts.reduce(function(a,b){return a+b;},0) / pcts.length) : 0;
+  $("statAll").textContent = allAvg + "%";
+  $("statDays").textContent = active;
+
+  renderChart(t);
+}
+
+function renderChart(today){
+  var W = 560, H = 190, PL = 34, PR = 10, PT = 14, PB = 26;
+  var iw = W - PL - PR, ih = H - PT - PB;
+  var days = [];
+  for (var i = 13; i >= 0; i--){
+    var key = shiftKey(today, -i);
+    days.push({ key: key, pct: dayPct(key) });
+  }
+  function X(i){ return PL + (iw * i / 13); }
+  function Y(p){ return PT + ih - (ih * p / 100); }
+
+  var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Consistency chart, last 14 days">';
+  s += '<defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">' +
+       '<stop offset="0%" stop-color="#38bdf8" stop-opacity=".32"/>' +
+       '<stop offset="100%" stop-color="#38bdf8" stop-opacity=".02"/></linearGradient></defs>';
+  [0, 50, 100].forEach(function(g){
+    s += '<line x1="' + PL + '" y1="' + Y(g) + '" x2="' + (W - PR) + '" y2="' + Y(g) + '" stroke="rgba(255,255,255,.08)" stroke-dasharray="3 4"/>';
+    s += '<text x="' + (PL - 6) + '" y="' + (Y(g) + 4) + '" fill="#8fa3c8" font-size="9" text-anchor="end">' + g + '%</text>';
+  });
+  var line = days.map(function(d, i){ return (i === 0 ? "M" : "L") + X(i).toFixed(1) + "," + Y(d.pct).toFixed(1); }).join(" ");
+  var area = line + " L" + X(13).toFixed(1) + "," + Y(0) + " L" + X(0).toFixed(1) + "," + Y(0) + " Z";
+  s += '<path d="' + area + '" fill="url(#areaFill)"/>';
+  s += '<path d="' + line + '" fill="none" stroke="#38bdf8" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>';
+  days.forEach(function(d, i){
+    var isToday = i === 13;
+    s += '<circle cx="' + X(i) + '" cy="' + Y(d.pct) + '" r="' + (isToday ? 4.4 : 3) + '" fill="' + (isToday ? "#7dd3fc" : "#0b1e4b") + '" stroke="#38bdf8" stroke-width="2"><title>' + d.key + ": " + d.pct + '%</title></circle>';
+    if (i % 2 === 0 || isToday){
+      var p = d.key.split("-");
+      s += '<text x="' + X(i) + '" y="' + (H - 8) + '" fill="' + (isToday ? "#7dd3fc" : "#8fa3c8") + '" font-size="9" text-anchor="middle">' + (+p[2]) + "/" + (+p[1]) + '</text>';
+    }
+  });
+  s += "</svg>";
+  $("chart").innerHTML = s;
+}
+
+function fmtDate(key){
+  var p = key.split("-");
+  var d = new Date(+p[0], +p[1] - 1, +p[2]);
+  var names = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return names[d.getDay()] + ", " + (+p[2]) + " " + months[+p[1] - 1];
+}
+
+function renderHistory(){
+  var t = todayKey();
+  var keys = Object.keys(state.days).filter(function(k){ return k !== t; }).sort().reverse();
+  var box = $("historyList");
+  if (!keys.length){
+    box.innerHTML = '<div class="empty-note">No past days yet. Your history starts building from tomorrow — make today count.</div>';
+    return;
+  }
+  box.innerHTML = "";
+  keys.slice(0, 30).forEach(function(k){
+    var rec = state.days[k];
+    var pct = dayPct(k);
+    var row = document.createElement("div"); row.className = "hist-row";
+    var left = document.createElement("div"); left.className = "hist-date";
+    left.innerHTML = '<div class="d"></div><div class="xp"></div>';
+    left.querySelector(".d").textContent = fmtDate(k);
+    left.querySelector(".xp").textContent = "+" + (rec.xp || 0) + " XP · " + Object.keys(rec.done).length + "/" + rec.total + " quests";
+    var bar = document.createElement("div"); bar.className = "hist-bar";
+    var fill = document.createElement("div"); fill.className = "hist-fill"; fill.style.width = pct + "%";
+    bar.appendChild(fill);
+    var pc = document.createElement("div"); pc.className = "hist-pct mono" + (pct === 100 ? " perfect" : "");
+    pc.textContent = pct + "%";
+    row.appendChild(left); row.appendChild(bar); row.appendChild(pc);
+    box.appendChild(row);
+  });
+}
+
+function renderAll(animateLevel){
+  syncTodayTotal();
+  renderPlayer(animateLevel);
+  renderQuests();
+  renderStats();
+  renderHistory();
+  saveState();
+}
+
+/* ==================== ACTIONS ==================== */
+function toggleQuest(id, rowEl){
+  var q = questById(id);
+  if (!q) return;
+  var rec = dayRec(todayKey());
+  var before = levelFromXp(totalXp());
+  if (rec.done[id]){
+    rec.xp -= rec.done[id];
+    delete rec.done[id];
+  } else {
+    rec.done[id] = q.xp;
+    rec.xp += q.xp;
+    if (rowEl){
+      var f = document.createElement("span");
+      f.className = "xp-float"; f.textContent = "+" + q.xp + " XP";
+      rowEl.appendChild(f);
+      setTimeout(function(){ f.remove(); }, 1050);
+    }
+  }
+  var after = levelFromXp(totalXp());
+  renderAll(after > before);
+}
+
+function deleteCustomQuest(id){
+  var t = todayKey(), rec = dayRec(t);
+  if (rec.done[id]){ rec.xp -= rec.done[id]; delete rec.done[id]; }
+  state.custom = state.custom.filter(function(q){ return q.id !== id; });
+  renderAll(false);
+}
+
+function addCustomQuest(){
+  var labelEl = $("newQuestLabel"), xpEl = $("newQuestXp");
+  var label = (labelEl.value || "").trim();
+  if (!label) { labelEl.focus(); return; }
+  var xp = parseInt(xpEl.value, 10);
+  if (isNaN(xp) || xp < 1) xp = 15;
+  if (xp > 500) xp = 500;
+  state.custom.push({ id: "c" + Date.now().toString(36), icon: "⭐", label: label, xp: xp, custom: true });
+  labelEl.value = "";
+  renderAll(false);
+}
+
+$("addQuestBtn").addEventListener("click", addCustomQuest);
+$("newQuestLabel").addEventListener("keydown", function(e){ if (e.key === "Enter") addCustomQuest(); });
+$("resetBtn").addEventListener("click", function(){
+  if (confirm("Reset ALL progress? This clears every quest log, all XP and streaks on this device. This cannot be undone.")){
+    try { localStorage.removeItem(LS_KEY); } catch (e) {}
+    state = { custom: [], days: {} };
+    renderAll(false);
+  }
+});
+
+/* ==================== INIT ==================== */
+(function init(){
+  var now = new Date();
+  var names = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  $("topDate").textContent = names[now.getDay()] + " · " + now.getDate() + " " + months[now.getMonth()] + " " + now.getFullYear();
+  dayRec(todayKey());
+  renderAll(false);
+  /* Day rollover while the page stays open: re-render at midnight */
+  setInterval(function(){
+    var rec = state.days[todayKey()];
+    if (!rec) renderAll(false);
+  }, 60000);
+})();
+</script>
+</body>
+</html>
